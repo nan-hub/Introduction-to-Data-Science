@@ -1,6 +1,8 @@
 ---
 title: "Biostat 203B Homework 1"
 subtitle: Due Jan 24 @ 11:59PM
+author: Nan Liu
+uid: 505460070
 output: html_document
 ---
 
@@ -45,7 +47,7 @@ Please, do **not** put these data files into Git; they are big. Also do **not** 
     Use Bash commands to answer following questions.
 
 3. What's the output of following bash script?
-```{bash include=FALSE}
+```{bash echo=TRUE}
     for datafile in /home/203bdata/mimic-iii/*.csv
       do
         ls $datafile
@@ -53,16 +55,15 @@ Please, do **not** put these data files into Git; they are big. Also do **not** 
     ```
 
 **Solution**:
-```{bash echo=FALSE}
-for datafile in /home/203bdata/mimic-iii/*.csv
-      do
-        ls $datafile
-      done
-```
+
 The output is the file end up with "csv" in the folder called mimic-iii, whose path is /home/203bdata/mimic-iii.
 
 Display the number of lines in each `csv` file.
+
+
 **Solution:**
+
+
 ```{bash echo=TRUE}
 for datafile in /home/203bdata/mimic-iii/*.csv
   do
@@ -72,6 +73,8 @@ for datafile in /home/203bdata/mimic-iii/*.csv
 
 
 4. -Display the first few lines of `ADMISSIONS.csv`.
+
+
 **Solution:** Let's display the first 10 lines of `ADMISSIONS.csv`
 ```{bash echo=TRUE}
    head /home/203bdata/mimic-iii/ADMISSIONS.csv 
@@ -79,6 +82,8 @@ for datafile in /home/203bdata/mimic-iii/*.csv
 
 
 -How many rows are in this data file?
+
+
 **Solution:**
 ```{bash echo=TRUE}
 awk 'END { print NR }' /home/203bdata/mimic-iii/ADMISSIONS.csv
@@ -86,22 +91,45 @@ awk 'END { print NR }' /home/203bdata/mimic-iii/ADMISSIONS.csv
 There 58977 rows in ADMISSIONS.csv datafile.
 
 -How many unique patients (identified by `SUBJECT_ID`) are in this data file?
+
+
 **Solution:**
 ```{bash echo=TRUE}
-awk -F, '{print $2}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sort | uniq | wc -l
+awk -F, '{print $2}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq | wc -l
 ```
-The output is 46521. Ignoring the first line, there are 46520 unique patients in this data file.
+There are 46520 unique patients in this data file.
 
 
 -What are the possible values taken by each of the variable `INSURANCE`, `LANGUAGE`, `RELIGION`, `MARITAL_STATUS`, and `ETHNICITY`?
+
+
 **Solution:**
+
+*INSURANCE*
 ```{bash echo=TRUE}
-tail -58976 /home/203bdata/mimic-iii/ADMISSIONS.csv | awk -F ',' '{print $10}' | sort | uniq
-tail -58976 /home/203bdata/mimic-iii/ADMISSIONS.csv | awk -F ',' '{print $11}' | sort | uniq
-tail -58976 /home/203bdata/mimic-iii/ADMISSIONS.csv | awk -F ',' '{print $12}' | sort | uniq
-tail -58976 /home/203bdata/mimic-iii/ADMISSIONS.csv | awk -F ',' '{print $13}' | sort | uniq
-tail -58976 /home/203bdata/mimic-iii/ADMISSIONS.csv | awk -F ',' '{print $14}' | sort | uniq
+awk -F, '{print $10}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq
 ```
+
+*LANGUAGE*
+```{bash}
+awk -F, '{print $11}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq
+```
+
+*RELIGION*
+```{bash}
+awk -F, '{print $12}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq
+```
+
+*MARITAL_STATUS*
+```{bash}
+awk -F, '{print $13}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq
+```
+
+*ETHNICITY*
+```{bash}
+awk -F, '{print $14}' /home/203bdata/mimic-iii/ADMISSIONS.csv | sed -n '2,$p' | sort | uniq
+```
+
 
 -How many (unique) patients are Hispanic? (Hint: combine Linux comamnds `head`, `tail`, `awk`, `uniq`, `wc`, `sort` and so on using pipe.)
 **Solution:**
@@ -121,13 +149,22 @@ Do **not** put this text file `pride_and_prejudice.txt` in Git. Using a `for` lo
 **Solution:**
 ```{bash echo=TRUE}
 awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Jane"| wc -l 
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Elizabeth"| wc -l 
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Lydia"| wc -l 
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Darcy"| wc -l 
 ```
 The number of times Jane is mentioned is 294.
+
+```{bash}
+awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Lydia"| wc -l 
+```
 The number of times Lydia is mentioned is 170.
+
+```{bash}
+awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Elizabeth"| wc -l 
+```
 The number of times Elizabeth is mentioned is 634.
+
+```{bash}
+awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Darcy"| wc -l 
+```
 The number of times Darcy is mentioned is 417.
 
 0. What's the difference between the following two commands?
@@ -139,9 +176,8 @@ The number of times Darcy is mentioned is 417.
     echo 'hello, world' >> test2.txt
     head test2.txt
     ```
-**Solution:**
-The < command directs 'hello, world' from one command to the file "test1.txt".
-The << command appends 'hello, world' from one command to the file "test2.txt".
+**Solution:**The < command directs 'hello, world' from one command to the file "test1.txt".
+             The << command appends 'hello, world' from one command to the file "test2.txt".
 
 0. Using your favorite text editor (e.g., `vi`), type the following and save the file as `middle.sh`:
     ```{bash eval=FALSE}
@@ -150,23 +186,42 @@ The << command appends 'hello, world' from one command to the file "test2.txt".
     # Usage: bash middle.sh filename end_line num_lines
     head -n "$2" "$1" | tail -n "$3"
     ```
-**Solution:**
-
-Use vi and save the file as `middle.sh`
+**Solution:**   Use vi and save the file as `middle.sh`
 
 Using `chmod` make the file executable by the owner,  
 **Solutuion:**
 ```{bash}
-chmod u+x pride_and_prejudice.txt
+chmod u+x middle.sh 
 ```
 and run
-```{bash eval=FALSE, include=FALSE}
-    ./middle.sh pride_and_prejudice.txt 20 5
+```{bash echo=TRUE}
+./middle.sh pride_and_prejudice.txt 20 5
     ```
 
 Explain the output. Explain the meaning of `"$1"`, `"$2"`, and `"$3"` in this shell script. Why do we need the first line of the shell script?
 
 **Solution:**
+The output is the last 5 lines of the first 20 lines of pride_and_prejudice.txt.
+
+
+`"$1"` is the first commandline argument. In this command, $1 is pride_and_prejudice.txt.
+
+
+`"$2"` is the second commandline argument. In this command, $2 is 20.
+
+
+Thus, `head -n "$2" "$1"` means print the first 20 lines of the file pride_and_prejudice.txt.
+
+
+`"$3"` is the second commandline argument. In this command, $3 is 5.
+
+
+Thus `head -n "$2" "$1" | tail -n "$3"` means print the last 5 line of the first 20 lines of pride_and_prejudice.txt.
+
+
+We need the first line to specify this script uses /bin/sh to execute.
+
+
 
 ## Q4. R Batch Run
 
@@ -179,13 +234,16 @@ $$
 for both methods.
 
 **Solution:**
-This is my 'runSim.R' code:
-```{r eval=FALSE, include=FALSE}
+This is my 'runSim.R' code:test with rep=50, seed=203, n=100, dist='gaussian'
+```{r}
 ## parsing command arguments
 for (arg in commandArgs(TRUE)) {
   eval(parse(text=arg))
 }
-
+rep <- 50
+seed <- 203
+n <- 100
+dist <- 'gaussian'
 ## check if a given integer is prime
 isPrime = function(n) {
   if (n <= 3) {
@@ -224,10 +282,13 @@ for (r in 1:rep) {
   mseSampAvg = mseSampAvg + mean(x)^2
   msePrimeAvg = msePrimeAvg + estMeanPrimes(x)^2
 }
-print(mseSampAvg / rep)
-print(msePrimeAvg / rep)
-report<-paste(mseSampAvg, msePrimeAvg, sep=",")
-report
+MSE<-paste (mseSampAvg / rep, msePrimeAvg / rep, sep = "," )
+MSE
+
+```
+In shell:
+```{bash}
+Rscript runSim.R  n=100 dist=\"gaussian\" seed=203 rep=50
 ```
 
 
@@ -236,20 +297,25 @@ report
 **Solution:** This is my `autoSim.R` code:
 ```{r echo=TRUE}
 #autoSim.R
-rep<-50
-seed<-203
-distTypes = c("gaussian", "t1", "t5")
+rep <- 50
+seed <- 203
+distTypes = c("gaussian", "t5", "t1")
 nVals <- seq(100, 500, by=100)
 for (n in nVals){
   for (dist in distTypes){
     oFile <- paste("n", n, dist, ".txt", sep="")
-    arg<-paste("n=", n, "dist=", shQuote(shQuote(dist)), "seed=", seed,"reps=", rep, sep="")
+    arg <- paste(" n=", n, " dist=", shQuote(shQuote(dist)), " seed=", seed," rep=", rep, sep="")
     sysCall <- paste("nohup Rscript runSim.R", arg, " > ", oFile, sep="")
     system(sysCall,wait = FALSE)
     print(paste("sysCall=", sysCall, sep=""))
   }
 }
 ```
+In shell:
+```{bash}
+Rscript autoSim.R
+```
+
 
 3. Write an R script to collect simulation results from output files and print average MSEs in a table of format
 
@@ -268,7 +334,36 @@ for (n in nVals){
 
 **Solution:**
 ```{r}
+col1 <- c()
+col2 <- c()
+for (n in seq(100, 500, by=100)) {
+  col1 <- append(col1, c(n, n))
+  col2 <- append(col2, c("PrimeAvg", "SampAvg"))
+}
+# Build a table without value
+table <- data.frame(
+  n = col1,
+  Method = col2,
+  Gaussian = NA, 
+  t5 = NA, t1 = NA
+           )
+#loop to write in data
+distTypes = c("gaussian","t5", "t1")
+nVals = seq(100, 500, by=100)
+i <- 0
+j <- 0
+for (n in nVals) {
+  i <- i + 1
+  j <- 0
+  for (dist in distTypes) {
+    j <- j + 1
+    File = paste("n", n, dist, ".txt", sep="")
+    a <- read.table(File)
+    table[2 * i-1, j + 2] <- a[1, 3]
+    table[2 * i, j + 2] <- a[1, 2]
+  }
+}
+table
 
-```
 
 
