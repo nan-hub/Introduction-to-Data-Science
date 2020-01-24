@@ -148,24 +148,20 @@ There are 1652 unique patients are Hispanic.
 Do **not** put this text file `pride_and_prejudice.txt` in Git. Using a `for` loop, how would you tabulate the number of times each of the four characters is mentioned?
 
 **Solution:**
-```{bash echo=TRUE}
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Jane"| wc -l 
-```
-The number of times Jane is mentioned is 294.
-
 ```{bash}
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Lydia"| wc -l 
+for character in 'Elizabeth' 'Jane' 'Lydia' 'Darcy'
+ do
+   echo $character
+   grep -o $character pride_and_prejudice.txt | wc -l
+done
 ```
-The number of times Lydia is mentioned is 170.
 
-```{bash}
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Elizabeth"| wc -l 
-```
 The number of times Elizabeth is mentioned is 634.
 
-```{bash}
-awk '{for(i=1;i<=NF;i++){print $i}}' pride_and_prejudice.txt | grep "Darcy"| wc -l 
-```
+The number of times Jane is mentioned is 294.
+
+The number of times Lydia is mentioned is 170.
+
 The number of times Darcy is mentioned is 417.
 
 0. What's the difference between the following two commands?

@@ -692,17 +692,22 @@ summary {
 <p>Do <strong>not</strong> put this text file <code>pride_and_prejudice.txt</code> in Git. Using a <code>for</code> loop, how would you tabulate the number of times each of the four characters is mentioned?</p></li>
 </ol>
 <p><strong>Solution:</strong></p>
-<pre class="bash"><code>awk '{for(i=1;i&lt;=NF;i++){print $i}}' pride_and_prejudice.txt | grep &quot;Jane&quot;| wc -l </code></pre>
-<pre><code>## 294</code></pre>
-<p>The number of times Jane is mentioned is 294.</p>
-<pre class="bash"><code>awk '{for(i=1;i&lt;=NF;i++){print $i}}' pride_and_prejudice.txt | grep &quot;Lydia&quot;| wc -l </code></pre>
-<pre><code>## 170</code></pre>
-<p>The number of times Lydia is mentioned is 170.</p>
-<pre class="bash"><code>awk '{for(i=1;i&lt;=NF;i++){print $i}}' pride_and_prejudice.txt | grep &quot;Elizabeth&quot;| wc -l </code></pre>
-<pre><code>## 634</code></pre>
+<pre class="bash"><code>for character in 'Elizabeth' 'Jane' 'Lydia' 'Darcy'
+ do
+   echo $character
+   grep -o $character pride_and_prejudice.txt | wc -l
+done</code></pre>
+<pre><code>## Elizabeth
+## 634
+## Jane
+## 294
+## Lydia
+## 170
+## Darcy
+## 417</code></pre>
 <p>The number of times Elizabeth is mentioned is 634.</p>
-<pre class="bash"><code>awk '{for(i=1;i&lt;=NF;i++){print $i}}' pride_and_prejudice.txt | grep &quot;Darcy&quot;| wc -l </code></pre>
-<pre><code>## 417</code></pre>
+<p>The number of times Jane is mentioned is 294.</p>
+<p>The number of times Lydia is mentioned is 170.</p>
 <p>The number of times Darcy is mentioned is 417.</p>
 <ol start="0" style="list-style-type: decimal">
 <li><p>What’s the difference between the following two commands?</p>
