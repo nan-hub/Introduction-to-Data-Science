@@ -12,12 +12,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Use tidyverse (ggpot2, dplyr) to explore the [MIMIC-III](https://mimic.physionet.org) data introduced in [homework 1](https://ucla-biostat203b-2020winter.github.io/hw/hw1/hw1.html).
 
+**first load tidyverse**
+```{r}
+library("tidyverse")
+```
+
 ## Q1
 
 Demographic information of the patients admitted into hospital is available in `ADMISSION.csv`. See <https://mimic.physionet.org/mimictables/admissions/> for details of each field in this file. Summarize following variables using appropriate graphs:   
 
-  - admission year  ????bar
-- admission month  ???bar
+  - admission year  
+- admission month  
 - admission week day  
 - admission hour  
 - length of hospital stay  
@@ -33,11 +38,141 @@ Demographic information of the patients admitted into hospital is available in `
 
 
 **Solution:**
+**First import data:**
+
 ```{r}
-#use this type of code
-library("tidyverse")
 admissions<-read_csv("/home/203bdata/mimic-iii/ADMISSIONS.csv")
-admissions
+```
+
+**spread data:**
+
+```{r}
+admissionstime<-admissions %>% 
+  separate(ADMITTIME,into = c("year", "month","weekday","hour","minute","second"))
+```
+
+- admission year
+
+```{r}
+#not unique data
+ggplot(data = admissionstime) + 
+  geom_bar(mapping = aes(x = year))
+```
+
+-admission month
+
+```{r}
+#not unique data
+ggplot(data = admissionstime) + 
+  geom_bar(mapping = aes(x = month),fill="pink")
+```
+
+-admission week day
+
+```{r}
+#not unique data
+ggplot(data = admissionstime) + 
+  geom_bar(mapping = aes(x = weekday))
+```
+
+-admission hour
+
+```{r}
+#not unique data
+ggplot(data = admissionstime) + 
+  geom_bar(mapping = aes(x = hour))
+```
+
+-length of hospital stay
+
+```{r warning=FALSE}
+#not unique data
+admissionsdif<-mutate(admissions,
+      lenstay=difftime(DISCHTIME,ADMITTIME,units = "days")
+)
+ggplot(data = admissionsdif) + 
+  geom_histogram(mapping = aes(x = lenstay),binwidth = 1)
+```
+
+- admission type  
+
+```{r}
+#unique data
+admissionsUNIQ<-distinct(admissions,SUBJECT_ID,.keep_all = TRUE)
+ggplot(data = admissionsUNIQ) + 
+  geom_bar(mapping = aes(x = ADMISSION_TYPE))
+```
+
+- number of admissions per patient  
+
+```{r}
+admissionsnum <- admissions %>% 
+  group_by(SUBJECT_ID) %>% 
+  summarise(
+    count = n())
+ggplot(data = admissionsnum) + 
+  geom_bar(mapping = aes(x = count))
+```
+
+- admission location  
+
+```{r}
+#not unique data
+ggplot(data = admissions) + 
+  geom_bar(mapping = aes(x = ADMISSION_LOCATION))
+```
+
+- insurance  
+
+```{r}
+#unique data
+ggplot(data = admissionsUNIQ) + 
+  geom_bar(mapping = aes(x =INSURANCE))
+```
+
+- language  
+
+```{r}
+#unique data
+ggplot(data = admissionsUNIQ) + 
+  geom_bar(mapping = aes(x =LANGUAGE))
+```
+
+- religion 
+
+```{r}
+#not unique data
+ggplot(data = admissions) + 
+  geom_bar(mapping = aes(x =RELIGION))
+```
+
+- martial status 
+
+```{r}
+#not unique data
+ggplot(data = admissions) + 
+  geom_bar(mapping = aes(x = MARITAL_STATUS))
+```
+
+- ethnicity  
+
+```{r}
+#unique data
+ggplot(data = admissionsUNIQ) + 
+  geom_bar(mapping = aes(x = ETHNICITY))
+```
+
+- death 
+
+```{r}
+admissionsdie <- admissions %>% 
+  filter(is.na(DEATHTIME)==FALSE) %>%
+  separate(DEATHTIME,into = c("year", "month","weekday","hour","minute","second")) %>%
+  group_by(year) %>% 
+  summarise(
+    count = n())
+ggplot(data = admissionsdie) + 
+  geom_point(mapping=aes(x=year,y=count))
 ```
 
 Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) is admitted into hospital multiple times. When summarizing some demographic information, it makes sense to summarize based on only unique patients. 
