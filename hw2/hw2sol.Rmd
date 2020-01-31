@@ -1,20 +1,24 @@
 ---
 title: "Biostat 203B Homework 2"
 subtitle: Due Feb 7 @ 11:59PM
-output: html_document
 author: Nan Liu
 uid: 505460070
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 ```
 
 Use tidyverse (ggpot2, dplyr) to explore the [MIMIC-III](https://mimic.physionet.org) data introduced in [homework 1](https://ucla-biostat203b-2020winter.github.io/hw/hw1/hw1.html).
 
-**first load tidyverse**
+**first load tidyverse and lubridate**
 ```{r}
 library("tidyverse")
+library("lubridate")
 ```
 
 ## Q1
@@ -40,58 +44,78 @@ Demographic information of the patients admitted into hospital is available in `
 **Solution:**
 **First import data:**
 
+First, let's display the first 10 lines of `ADMISSIONS.csv`:
+```{bash}
+head /home/203bdata/mimic-iii/ADMISSIONS.csv 
+```
+
 ```{r}
 admissions<-read_csv("/home/203bdata/mimic-iii/ADMISSIONS.csv")
+admissions %>% print(width = Inf)
 ```
 
-**spread data:**
 
-```{r}
-admissionstime<-admissions %>% 
-  separate(ADMITTIME,into = c("year", "month","weekday","hour","minute","second"))
-```
 
 - admission year
 
 ```{r}
 #not unique data
-ggplot(data = admissionstime) + 
-  geom_bar(mapping = aes(x = year))
+admissions %>%
+  mutate(adm_year = year(ADMITTIME)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = adm_year))
 ```
 
 -admission month
 
 ```{r}
 #not unique data
-ggplot(data = admissionstime) + 
-  geom_bar(mapping = aes(x = month),fill="pink")
+admissions %>%
+  mutate(adm_month = month(ADMITTIME, label = TRUE)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = adm_month)) +
+  labs(x = "Admission month")
 ```
 
 -admission week day
 
 ```{r}
 #not unique data
-ggplot(data = admissionstime) + 
-  geom_bar(mapping = aes(x = weekday))
+admissions %>%
+  mutate(adm_weekday = wday(ADMITTIME, label = TRUE)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = adm_weekday)) +
+  labs(x = "Admission week day")
 ```
-
 -admission hour
 
 ```{r}
 #not unique data
-ggplot(data = admissionstime) + 
-  geom_bar(mapping = aes(x = hour))
+admissions %>%
+  mutate(adm_hour = hour(ADMITTIME)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = adm_hour)) +
+  labs(x = "Admission hour")
+```
+
+-admission minute
+```{r}
+admissions %>%
+  mutate(adm_min = minute(ADMITTIME)) %>%
+  ggplot() + 
+  geom_freqpoly(mapping = aes(x = adm_min)) +
+  labs(x = "Admission minute")
 ```
 
 -length of hospital stay
 
 ```{r warning=FALSE}
 #not unique data
-admissionsdif<-mutate(admissions,
-      lenstay=difftime(DISCHTIME,ADMITTIME,units = "days")
-)
-ggplot(data = admissionsdif) + 
-  geom_histogram(mapping = aes(x = lenstay),binwidth = 1)
+admissions %>%
+  mutate(lenstay = as.numeric(as.duration(DISCHTIME - ADMITTIME) / 86400)) %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x = lenstay),bins = 100) +
+  labs(x = "Length of hospital stay in (days)")
 ```
 
 - admission type  
@@ -119,7 +143,12 @@ ggplot(data = admissionsnum) +
 ```{r}
 #not unique data
 ggplot(data = admissions) + 
-  geom_bar(mapping = aes(x = ADMISSION_LOCATION))
+  geom_bar(mapping = aes(x = ADMISSION_LOCATION))+
+  labs(x="") + 
+  theme(axis.text.x =element_text(size  = 8,
+                                  angle = 45,
+                                  hjust = 1,
+                                  vjust = 1))
 ```
 
 - insurance  
@@ -133,9 +162,14 @@ ggplot(data = admissionsUNIQ) +
 - language  
 
 ```{r}
-#unique data
+#unique data bad!!!!!
 ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x =LANGUAGE))
+  geom_bar(mapping = aes(x =LANGUAGE)) +
+  labs(x="") + 
+  theme(axis.text.x =element_text(size  = 7,
+                                  angle = 70,
+                                  hjust = 1,
+                                  vjust = 1))
 ```
 
 - religion 
@@ -143,7 +177,12 @@ ggplot(data = admissionsUNIQ) +
 ```{r}
 #not unique data
 ggplot(data = admissions) + 
-  geom_bar(mapping = aes(x =RELIGION))
+  geom_bar(mapping = aes(x =RELIGION)) +
+  labs(x="") + 
+  theme(axis.text.x =element_text(size  = 8,
+                                  angle = 45,
+                                  hjust = 1,
+                                  vjust = 1))
 ```
 
 - martial status 
@@ -151,7 +190,12 @@ ggplot(data = admissions) +
 ```{r}
 #not unique data
 ggplot(data = admissions) + 
-  geom_bar(mapping = aes(x = MARITAL_STATUS))
+  geom_bar(mapping = aes(x = MARITAL_STATUS)) + 
+  labs(x="") + 
+  theme(axis.text.x =element_text(size  = 8,
+                                  angle = 45,
+                                  hjust = 1,
+                                  vjust = 1))
 ```
 
 - ethnicity  
@@ -159,7 +203,12 @@ ggplot(data = admissions) +
 ```{r}
 #unique data
 ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x = ETHNICITY))
+  geom_bar(mapping = aes(x = ETHNICITY)) +
+  labs(x="") + 
+  theme(axis.text.x =element_text(size  = 8,
+                                  angle = 45,
+                                  hjust = 1,
+                                  vjust = 1))
 ```
 
 - death 
