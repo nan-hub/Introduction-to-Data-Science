@@ -230,8 +230,25 @@ Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) i
 
 Link the data in `ADMISSION.csv` and `PATIENTS.csv` (<https://mimic.physionet.org/mimictables/patients/>) and summarize following variables using appropriate graphs:  
 
-- gender  
+- gender 
+```{r}
+distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = GENDER))
+```
+
 - age at admission 
+```{r}
+comb<-admissions %>%
+  left_join(patients, by = "SUBJECT_ID") %>%
+  filter(!is.na(ADMITTIME), !is.na(DOB))
+comb %>%
+  mutate(age = (ADMITTIME - DOB)/31536000,
+         AGE= round (age,0)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = AGE))
+```
+
 
 ## Q3
 
