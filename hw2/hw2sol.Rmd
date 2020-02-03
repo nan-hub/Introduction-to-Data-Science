@@ -166,7 +166,7 @@ ggplot(data = admissionsUNIQ) +
 ggplot(data = admissionsUNIQ) + 
   geom_bar(mapping = aes(x =LANGUAGE)) +
   labs(x="") + 
-  theme(axis.text.x =element_text(size  = 7,
+  theme(axis.text.x =element_text(size  = 8,
                                   angle = 70,
                                   hjust = 1,
                                   vjust = 1))
@@ -205,8 +205,8 @@ ggplot(data = admissions) +
 ggplot(data = admissionsUNIQ) + 
   geom_bar(mapping = aes(x = ETHNICITY)) +
   labs(x="") + 
-  theme(axis.text.x =element_text(size  = 8,
-                                  angle = 45,
+  theme(axis.text.x =element_text(size  = 5,
+                                  angle = 70,
                                   hjust = 1,
                                   vjust = 1))
 ```
@@ -230,6 +230,13 @@ Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) i
 
 Link the data in `ADMISSION.csv` and `PATIENTS.csv` (<https://mimic.physionet.org/mimictables/patients/>) and summarize following variables using appropriate graphs:  
 
+First let's import `PATIENTS.csv` and comnbine two files:
+```{r}
+patients<-read_csv("/home/203bdata/mimic-iii/PATIENTS.csv")
+comb<-admissions %>%
+  left_join(patients, by = "SUBJECT_ID")
+```
+
 - gender 
 ```{r}
 distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
@@ -239,10 +246,8 @@ distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
 
 - age at admission 
 ```{r}
-comb<-admissions %>%
-  left_join(patients, by = "SUBJECT_ID") %>%
-  filter(!is.na(ADMITTIME), !is.na(DOB))
 comb %>%
+  filter(!is.na(ADMITTIME), !is.na(DOB)) %>%
   mutate(age = (ADMITTIME - DOB)/31536000,
          AGE= round (age,0)) %>%
   ggplot() + 
@@ -254,10 +259,55 @@ comb %>%
 
 `ICUSTAYS.csv` (<https://mimic.physionet.org/mimictables/icustays/>) contains data about Intensive Care Units (ICU) stays. Summarize following variables using appropriate graphs:  
 
-- length of ICU stay  
-- first ICU unit  
+
+First let's import `ICUSTAYS.csv`:
+
+```{r}
+icu<-read_csv("/home/203bdata/mimic-iii/ICUSTAYS.csv")
+icu
+```
+
+- length of ICU stay
+
+```{r}
+icu %>%
+  filter(!is.na(OUTTIME), !is.na(INTIME)) %>%
+  mutate(day=(OUTTIME-INTIME)/86400,
+         DAY = round(day,0)) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = DAY))
+```
+
+- first ICU unit
+
+```{r}
+distinct(icu, SUBJECT_ID,.keep_all = TRUE) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = FIRST_CAREUNIT))
+```
+
 - gender  
+```{r}
+icuinfo<-icu %>%
+  left_join(patients, by = "SUBJECT_ID")
+icuinfo %>%
+  distinct(SUBJECT_ID,.keep_all = TRUE) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = GENDER))
+```
+
 - age  
+```{r}
+icuinfo %>%
+  filter(!is.na(DOB), !is.na(INTIME)) %>%
+  mutate(icuage = (INTIME - DOB)/525600,
+         ICUAGE= round (icuage,0)) %>%
+  ggplot() + 
+  geom_histogram(mapping = aes(x = ICUAGE), binwidth = 5)
+```
+
+
+
 
 ## Q4 
 
