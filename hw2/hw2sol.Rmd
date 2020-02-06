@@ -63,7 +63,8 @@ admissions %>% print(width = Inf)
 admissions %>%
   mutate(adm_year = year(ADMITTIME)) %>%
   ggplot() + 
-  geom_bar(mapping = aes(x = adm_year))
+  geom_bar(mapping = aes(x = adm_year)) + 
+  labs(x = "admission year")
 ```
 
 -admission month
@@ -87,6 +88,7 @@ admissions %>%
   geom_bar(mapping = aes(x = adm_weekday)) +
   labs(x = "Admission week day")
 ```
+
 -admission hour
 
 ```{r}
@@ -121,10 +123,10 @@ admissions %>%
 - admission type  
 
 ```{r}
-#unique data
-admissionsUNIQ<-distinct(admissions,SUBJECT_ID,.keep_all = TRUE)
-ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x = ADMISSION_TYPE))
+#not unique data
+ggplot(data = admissions) + 
+  geom_bar(mapping = aes(x = ADMISSION_TYPE)) + 
+  labs(x = "admission type")
 ```
 
 - number of admissions per patient  
@@ -135,7 +137,8 @@ admissionsnum <- admissions %>%
   summarise(
     count = n())
 ggplot(data = admissionsnum) + 
-  geom_bar(mapping = aes(x = count))
+  geom_bar(mapping = aes(x = count)) + 
+  labs(x = "number of admissions per patient")
 ```
 
 - admission location  
@@ -144,28 +147,30 @@ ggplot(data = admissionsnum) +
 #not unique data
 ggplot(data = admissions) + 
   geom_bar(mapping = aes(x = ADMISSION_LOCATION))+
-  labs(x="") + 
-  theme(axis.text.x =element_text(size  = 8,
-                                  angle = 45,
-                                  hjust = 1,
-                                  vjust = 1))
+  labs(x = "admission location") + 
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 45,
+                                   hjust = 1,
+                                   vjust = 1))
 ```
 
 - insurance  
 
 ```{r}
-#unique data
-ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x =INSURANCE))
+#not unique data
+ggplot(data = admissions) + 
+  geom_bar(mapping = aes(x =INSURANCE)) +
+  labs(x = "insurance")
 ```
 
 - language  
 
 ```{r}
-#unique data bad!!!!!
+#unique data
+admissionsUNIQ <- distinct(admissions, SUBJECT_ID, .keep_all = TRUE)
 ggplot(data = admissionsUNIQ) + 
   geom_bar(mapping = aes(x =LANGUAGE)) +
-  labs(x="") + 
+  labs(x = "language") + 
   theme(axis.text.x =element_text(size  = 8,
                                   angle = 70,
                                   hjust = 1,
@@ -177,12 +182,12 @@ ggplot(data = admissionsUNIQ) +
 ```{r}
 #not unique data
 ggplot(data = admissions) + 
-  geom_bar(mapping = aes(x =RELIGION)) +
-  labs(x="") + 
-  theme(axis.text.x =element_text(size  = 8,
-                                  angle = 45,
-                                  hjust = 1,
-                                  vjust = 1))
+  geom_bar(mapping = aes(x = RELIGION)) +
+  labs(x = "religion") + 
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 45,
+                                   hjust = 1,
+                                   vjust = 1))
 ```
 
 - martial status 
@@ -191,11 +196,11 @@ ggplot(data = admissions) +
 #not unique data
 ggplot(data = admissions) + 
   geom_bar(mapping = aes(x = MARITAL_STATUS)) + 
-  labs(x="") + 
-  theme(axis.text.x =element_text(size  = 8,
-                                  angle = 45,
-                                  hjust = 1,
-                                  vjust = 1))
+  labs(x = "martial status") + 
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 45,
+                                   hjust = 1,
+                                   vjust = 1))
 ```
 
 - ethnicity  
@@ -204,24 +209,24 @@ ggplot(data = admissions) +
 #unique data
 ggplot(data = admissionsUNIQ) + 
   geom_bar(mapping = aes(x = ETHNICITY)) +
-  labs(x="") + 
-  theme(axis.text.x =element_text(size  = 5,
-                                  angle = 70,
-                                  hjust = 1,
-                                  vjust = 1))
+  labs(x = "ethnicity") + 
+  theme(axis.text.x = element_text(size  = 5,
+                                   angle = 70,
+                                   hjust = 1,
+                                   vjust = 1))
 ```
 
 - death 
 
 ```{r}
-admissionsdie <- admissions %>% 
-  filter(is.na(DEATHTIME)==FALSE) %>%
-  separate(DEATHTIME,into = c("year", "month","weekday","hour","minute","second")) %>%
-  group_by(year) %>% 
-  summarise(
-    count = n())
-ggplot(data = admissionsdie) + 
-  geom_point(mapping=aes(x=year,y=count))
+admissions %>% 
+  group_by(SUBJECT_ID) %>%
+  arrange(desc(ADMITTIME)) %>%
+  distinct(SUBJECT_ID, .keep_all = TRUE) %>%
+  mutate(livedeath =ifelse(is.na(DEATHTIME) == FALSE, "death", "live")) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = livedeath)) + 
+  labs(x = "death and alive")
 ```
 
 Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) is admitted into hospital multiple times. When summarizing some demographic information, it makes sense to summarize based on only unique patients. 
@@ -230,10 +235,12 @@ Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) i
 
 Link the data in `ADMISSION.csv` and `PATIENTS.csv` (<https://mimic.physionet.org/mimictables/patients/>) and summarize following variables using appropriate graphs:  
 
+**Solution:**
+
 First let's import `PATIENTS.csv` and comnbine two files:
 ```{r}
-patients<-read_csv("/home/203bdata/mimic-iii/PATIENTS.csv")
-comb<-admissions %>%
+patients <- read_csv("/home/203bdata/mimic-iii/PATIENTS.csv")
+comb <- admissions %>%
   left_join(patients, by = "SUBJECT_ID")
 ```
 
@@ -248,8 +255,8 @@ distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
 ```{r}
 comb %>%
   filter(!is.na(ADMITTIME), !is.na(DOB)) %>%
-  mutate(age = (ADMITTIME - DOB)/31536000,
-         AGE= round (age,0)) %>%
+  mutate(age = (ADMITTIME - DOB) / 31536000,
+         AGE= round (age, 0)) %>%
   ggplot() + 
   geom_bar(mapping = aes(x = AGE))
 ```
@@ -260,11 +267,12 @@ comb %>%
 `ICUSTAYS.csv` (<https://mimic.physionet.org/mimictables/icustays/>) contains data about Intensive Care Units (ICU) stays. Summarize following variables using appropriate graphs:  
 
 
+**Solution:**
+
 First let's import `ICUSTAYS.csv`:
 
 ```{r}
-icu<-read_csv("/home/203bdata/mimic-iii/ICUSTAYS.csv")
-icu
+icu <- read_csv("/home/203bdata/mimic-iii/ICUSTAYS.csv")
 ```
 
 - length of ICU stay
@@ -272,8 +280,8 @@ icu
 ```{r}
 icu %>%
   filter(!is.na(OUTTIME), !is.na(INTIME)) %>%
-  mutate(day=(OUTTIME-INTIME)/86400,
-         DAY = round(day,0)) %>%
+  mutate(day = (OUTTIME - INTIME) / 86400,
+         DAY = round(day, 0)) %>%
   ggplot() + 
   geom_bar(mapping = aes(x = DAY))
 ```
@@ -288,7 +296,8 @@ distinct(icu, SUBJECT_ID,.keep_all = TRUE) %>%
 
 - gender  
 ```{r}
-icuinfo<-icu %>%
+#not unique????
+icuinfo <- icu %>%
   left_join(patients, by = "SUBJECT_ID")
 icuinfo %>%
   distinct(SUBJECT_ID,.keep_all = TRUE) %>%
@@ -301,7 +310,7 @@ icuinfo %>%
 icuinfo %>%
   filter(!is.na(DOB), !is.na(INTIME)) %>%
   mutate(icuage = (INTIME - DOB)/525600,
-         ICUAGE= round (icuage,0)) %>%
+         ICUAGE = round (icuage,0)) %>%
   ggplot() + 
   geom_histogram(mapping = aes(x = ICUAGE), binwidth = 5)
 ```
@@ -316,3 +325,19 @@ icuinfo %>%
 `D_ITEMS.csv` (<https://mimic.physionet.org/mimictables/d_items/>) is the dictionary for the `ITEMID` in `CHARTEVENTS.csv`. Find potential values of `ITEMID` that correspond to systolic blood pressure, i.e., `LABEL` contains the string `systolic`. 
 
 Compile a tibble that contains the first ICU stay of unique patients, with the patient's demographic information, the first systolic blood pressure measurement during ICU stay, and whether the patient died within 30 days of hospitcal admission.
+
+**Solution:**
+First import two files:
+
+```{r}
+chart <- read_csv("/home/203bdata/mimic-iii/CHARTEVENTS.csv")
+itemid <- read_csv("/home/203bdata/mimic-iii/D_ITEMS.csv")
+```
+
+Then find potential values of `ITEMID` that correspond to systolic blood pressure:
+```{r}
+
+```
+
+
+
