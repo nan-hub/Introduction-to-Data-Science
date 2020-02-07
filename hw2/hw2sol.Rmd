@@ -67,6 +67,9 @@ admissions %>%
   labs(x = "admission year")
 ```
 
+Every year have similar number of admissions from 2100 to about 2197. But around 2220, the number of admissions decrease significantlly.
+
+
 -admission month
 
 ```{r}
@@ -77,6 +80,8 @@ admissions %>%
   geom_bar(mapping = aes(x = adm_month)) +
   labs(x = "Admission month")
 ```
+
+Every month has similar number of admissions. Feburary has the minimum number of admissions, which is around 4500.
 
 -admission week day
 
@@ -89,6 +94,8 @@ admissions %>%
   labs(x = "Admission week day")
 ```
 
+The number of admissions of weekday is higher than that of weekend. From Monday to Friday, the number of admissions decrease slightly.
+
 -admission hour
 
 ```{r}
@@ -100,6 +107,8 @@ admissions %>%
   labs(x = "Admission hour")
 ```
 
+The number of admissions decrease from 0:00 o'clock to about 6:00 o'clock. When it reaches around 7 o'clock, the number of admissions gets maximum. After that, the number of admissions decreases until about 9:00 o'clock and increase again utill about 19:00 o'clock. The number of admissions decreases slightly in the last few hours of a day.
+
 -admission minute
 ```{r}
 admissions %>%
@@ -108,6 +117,8 @@ admissions %>%
   geom_freqpoly(mapping = aes(x = adm_min)) +
   labs(x = "Admission minute")
 ```
+
+There are about four peaks in the graph. Most people are admitted at around 0 minute, 15 minute, 30 minute and 45 minute. This maybe caused by human habbit that we like to estimate time at these four minutes.
 
 -length of hospital stay
 
@@ -120,6 +131,9 @@ admissions %>%
   labs(x = "Length of hospital stay in (days)")
 ```
 
+
+Most of patients stay in hospital no more than 20 days. Only a few people stay in hospital more than 50 days.
+
 - admission type  
 
 ```{r}
@@ -128,6 +142,8 @@ ggplot(data = admissions) +
   geom_bar(mapping = aes(x = ADMISSION_TYPE)) + 
   labs(x = "admission type")
 ```
+
+Most of people's admission type is "emergency". The type "newborn" and "elective" have similar number of admissions. The "urgent" admission type has fewest patients.
 
 - number of admissions per patient  
 
@@ -140,6 +156,9 @@ ggplot(data = admissionsnum) +
   geom_bar(mapping = aes(x = count)) + 
   labs(x = "number of admissions per patient")
 ```
+
+Most of people has no more than 2 times admission. The number of people who has more than 3 times admissions is relatively small.
+
 
 - admission location  
 
@@ -154,6 +173,9 @@ ggplot(data = admissions) +
                                    vjust = 1))
 ```
 
+Most people's admission location is "emergency room admit". "phys referral/normal deli", "clinic referral/premature" and  "transfer from hosp/extram" are also popluar admission location.
+
+
 - insurance  
 
 ```{r}
@@ -163,11 +185,19 @@ ggplot(data = admissions) +
   labs(x = "insurance")
 ```
 
+Most people's insurance type is "Medicare". The seond popular insurance type is "private". Relatively small number of people's insurance is "Self Pay".
+
+
 - language  
 
-Too many language, so I just display top ten languages.
+There are too many languages so it may be meaningless to plot them all.
+
+I just display top 10 languages that are spoken by most people.
+
 ```{r}
 #unique data
+admissionsUNIQ <- admissions %>%
+  distinct(SUBJECT_ID, .keep_all = TRUE)
 top10 <- admissionsUNIQ %>%
   group_by(LANGUAGE) %>%
   summarise(count =n()) %>%
@@ -178,6 +208,9 @@ top_n(top10, 10) %>%
   geom_bar(mapping = aes(x = LANGUAGE, y=count),stat = "identity") +
   labs(x = "language")
 ```
+
+Most people speak English. People who speak Spanish has the second largest number, but still dramatically lower than English speaker. The other languages are spoken by very small number of people.
+
 
 - religion 
 
@@ -192,6 +225,8 @@ ggplot(data = admissions) +
                                    vjust = 1))
 ```
 
+The top 1 popluar religion is "catholic". Many people's response to the question is not specified or unobtainable. The "protestant quaker" has the second large number of popluation. Also "jewish" has the third largest popluation.
+
 - martial status 
 
 ```{r}
@@ -205,20 +240,34 @@ ggplot(data = admissions) +
                                    vjust = 1))
 ```
 
+The number of people who is married is about 2 times larger than the number of people who is single. The number of widowed is about 7500 and number of divorced is about 3000.
+
 - ethnicity  
 
+There are too many ethnicity types in the file, so it is meaningless to display them all. I select top 10 ethnicity which has the largest population.
+
 ```{r}
-#unique data
-ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x = ETHNICITY)) +
-  labs(x = "ethnicity") + 
-  theme(axis.text.x = element_text(size  = 5,
-                                   angle = 70,
+#unique data & top 10
+top10e <- admissionsUNIQ %>%
+  group_by(ETHNICITY) %>%
+  summarise(count =n()) %>%
+  filter(!is.na(ETHNICITY)) %>%
+  arrange(desc(count))
+top_n(top10e, 10) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = ETHNICITY, y=count),stat = "identity") +
+  labs(x = "ETHNICITY") +
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 45,
                                    hjust = 1,
                                    vjust = 1))
 ```
 
+Most of the patients is "white".
+
 - death 
+
+I plot the bar graph of the number of people who die and not die.
 
 ```{r}
 admissions %>% 
@@ -230,6 +279,10 @@ admissions %>%
   geom_bar(mapping = aes(x = livedeath)) + 
   labs(x = "death and alive")
 ```
+
+The number of patients who is still alive is about 8 times larger than that of patients who die.
+
+
 
 Note it is possible that one patient (uniquely identified by the `SUBJECT_ID`) is admitted into hospital multiple times. When summarizing some demographic information, it makes sense to summarize based on only unique patients. 
 
@@ -253,6 +306,9 @@ distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
   geom_bar(mapping = aes(x = GENDER))
 ```
 
+The number of male patients is about 5000 larger than the number of female patients at admission.
+
+
 - age at admission 
 
 ```{r warning=FALSE}
@@ -264,6 +320,7 @@ comb %>%
   geom_bar(mapping = aes(x = AGE))
 ```
 
+About 8000 patients are 0 year old at admission, and most of patients at admission are between 16 to 85 years old. A few number of people is over 300 years old at admission.
 
 
 ## Q3
@@ -290,22 +347,18 @@ icu %>%
   geom_bar(mapping = aes(x = DAY))
 ```
 
+Most of patients stay in ICU about 1-2 days. The number of patients who stay in ICU longer than 25 days is relatively small.
+
 - first ICU unit
 
 ```{r}
-distinct(icu, SUBJECT_ID,.keep_all = TRUE) %>%
-  ggplot() + 
-  geom_bar(mapping = aes(x = FIRST_CAREUNIT))
-
-icu %>%
-group_by(SUBJECT_ID) %>%
-  ggplot() + 
-  geom_bar(mapping = aes(x = FIRST_CAREUNIT)) 
-
 icu %>%
   ggplot() + 
   geom_bar(mapping = aes(x = FIRST_WARDID)) 
 ```
+
+Most of patients' first ICU unit are 4, 11-15, 23, 33, 50-57.
+
 
 - gender  
 ```{r}
@@ -315,6 +368,8 @@ icu %>%
   ggplot() + 
   geom_bar(mapping = aes(x = GENDER))
 ```
+
+The number of male patients is about 5000 larger than the number of female patients in ICU.
 
 - age  
 ```{r}
@@ -327,7 +382,7 @@ icu %>%
   geom_histogram(mapping = aes(x = ICUAGE), binwidth = 5)
 ```
 
-
+About 8000 patients are 0 year old in ICU, and most of patients in ICU are between about 20 to 90 years old. A few number of people is over 300 years old in ICU.
 
 
 ## Q4 
@@ -339,6 +394,7 @@ icu %>%
 Compile a tibble that contains the first ICU stay of unique patients, with the patient's demographic information, the first systolic blood pressure measurement during ICU stay, and whether the patient died within 30 days of hospitcal admission.
 
 **Solution:**
+
 First import two files:
 
 ```{r}
@@ -347,50 +403,57 @@ itemid <- read_csv("/home/203bdata/mimic-iii/D_ITEMS.csv")
 ```
 
 Then find potential values of `ITEMID` that correspond to systolic blood pressure:
+
 ```{r}
 itemid %>%
   filter(str_detect(LABEL, "systolic"))
 ```
 
+Get information about the first ICU stay of unique patients
 ```{r}
 firsticu <- icu %>%
   arrange(INTIME) %>%
   distinct(SUBJECT_ID, .keep_all = TRUE) #first ICU stay of unique patients
 ```
 
+Get information about the first systolic blood pressure:
 
 ```{r}
 firstchart <- chart %>%
   filter(ITEMID %in% c(226850, 226852,220050, 220059,220179)) %>%
   arrange(CHARTTIME) %>%
-  distinct(SUBJECT_ID, .keep_all = TRUE) #first systolic blood pressure 
+  distinct(SUBJECT_ID, .keep_all = TRUE)  
 ```
+
+Create new variable to determine whether the patient died within 30 days of hospital admission:
+
 ```{r}
-#whether the patient died within 30 days of hospitcal admission.
 live30 <- admissions %>%
   mutate(livetime = as.numeric(as.duration(DEATHTIME - ADMITTIME)) / 86400,
           live = ifelse((livetime>30) == FALSE, "less than 30", "more than 30"))
 ```
 
+Select demographic information, use the file `live30` which contains information whether the patient died within 30 days of hospital admission.
 ```{r}
-#demographic and wether live more than 30
 demo <- select(live30, HADM_ID, SUBJECT_ID, INSURANCE, LANGUAGE, RELIGION, MARITAL_STATUS, ETHNICITY, live)
 ```
 
-combine the firsticu and demographic and 30:
+Combine with `firsticu`, which contains information about the first ICU stay of unique patients:
+
 ```{r}
 icudemo30 <- firsticu %>%
   left_join(demo, by = "HADM_ID")
 ```
 
-combine icudemo30 and firstchart:
+Combine with `firstchart` which contains information about first systolic blood pressure:
+
 ```{r}
 full <- icudemo30 %>%
-  left_join(firstchart, by = c("SUBJECT_ID.x" = "SUBJECT_ID")) %>%
-  arrange(SUBJECT_ID.x)
+  left_join(firstchart, by = c("SUBJECT_ID.x" = "SUBJECT_ID"))
 ```
 
-select the variable that I need:
+Select the variable that I need and `fintable` is the tibble described in Q4.
+
 ```{r}
 fintable <- full %>%
   select (-c(ROW_ID.y, SUBJECT_ID.y, HADM_ID.y, ICUSTAY_ID.y)) %>%
