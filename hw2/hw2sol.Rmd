@@ -67,7 +67,7 @@ admissions %>%
   labs(x = "admission year")
 ```
 
-Every year have similar number of admissions from 2100 to about 2197. But around 2220, the number of admissions decrease significantlly.
+From 2100 to about 2197, the number of admissions inflate slightly but all greater than 500. Around 2220, the number of admissions decrease significantlly.
 
 
 -admission month
@@ -209,7 +209,7 @@ top_n(top10, 10) %>%
   labs(x = "language")
 ```
 
-Most people speak English. People who speak Spanish has the second largest number, but still dramatically lower than English speaker. The other languages are spoken by very small number of people.
+Most people speak English. "Spanish" has the second largest number, but still dramatically lower than English. The other languages are spoken by very small number of people.
 
 
 - religion 
