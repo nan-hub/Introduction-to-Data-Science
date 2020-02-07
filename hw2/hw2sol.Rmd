@@ -165,16 +165,18 @@ ggplot(data = admissions) +
 
 - language  
 
+Too many language, so I just display top ten languages.
 ```{r}
 #unique data
-admissionsUNIQ <- distinct(admissions, SUBJECT_ID, .keep_all = TRUE)
-ggplot(data = admissionsUNIQ) + 
-  geom_bar(mapping = aes(x =LANGUAGE)) +
-  labs(x = "language") + 
-  theme(axis.text.x =element_text(size  = 8,
-                                  angle = 70,
-                                  hjust = 1,
-                                  vjust = 1))
+top10 <- admissionsUNIQ %>%
+  group_by(LANGUAGE) %>%
+  summarise(count =n()) %>%
+  filter(!is.na(LANGUAGE)) %>%
+  arrange(desc(count))
+top_n(top10, 10) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = LANGUAGE, y=count),stat = "identity") +
+  labs(x = "language")
 ```
 
 - religion 
@@ -252,14 +254,16 @@ distinct(comb, SUBJECT_ID,.keep_all = TRUE) %>%
 ```
 
 - age at admission 
-```{r}
+
+```{r warning=FALSE}
 comb %>%
   filter(!is.na(ADMITTIME), !is.na(DOB)) %>%
   mutate(age = (ADMITTIME - DOB) / 31536000,
-         AGE= round (age, 0)) %>%
+         AGE = round(age, 0)) %>%
   ggplot() + 
   geom_bar(mapping = aes(x = AGE))
 ```
+
 
 
 ## Q3
@@ -292,14 +296,21 @@ icu %>%
 distinct(icu, SUBJECT_ID,.keep_all = TRUE) %>%
   ggplot() + 
   geom_bar(mapping = aes(x = FIRST_CAREUNIT))
+
+icu %>%
+group_by(SUBJECT_ID) %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = FIRST_CAREUNIT)) 
+
+icu %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = FIRST_WARDID)) 
 ```
 
 - gender  
 ```{r}
-#not unique????
-icuinfo <- icu %>%
-  left_join(patients, by = "SUBJECT_ID")
-icuinfo %>%
+icu %>%
+  inner_join(patients, by = "SUBJECT_ID") %>%
   distinct(SUBJECT_ID,.keep_all = TRUE) %>%
   ggplot() + 
   geom_bar(mapping = aes(x = GENDER))
@@ -307,7 +318,8 @@ icuinfo %>%
 
 - age  
 ```{r}
-icuinfo %>%
+icu %>%
+  left_join(patients, by = "SUBJECT_ID") %>%
   filter(!is.na(DOB), !is.na(INTIME)) %>%
   mutate(icuage = (INTIME - DOB)/525600,
          ICUAGE = round (icuage,0)) %>%
@@ -336,8 +348,54 @@ itemid <- read_csv("/home/203bdata/mimic-iii/D_ITEMS.csv")
 
 Then find potential values of `ITEMID` that correspond to systolic blood pressure:
 ```{r}
+itemid %>%
+  filter(str_detect(LABEL, "systolic"))
+```
 
+```{r}
+firsticu <- icu %>%
+  arrange(INTIME) %>%
+  distinct(SUBJECT_ID, .keep_all = TRUE) #first ICU stay of unique patients
 ```
 
 
+```{r}
+firstchart <- chart %>%
+  filter(ITEMID %in% c(226850, 226852,220050, 220059,220179)) %>%
+  arrange(CHARTTIME) %>%
+  distinct(SUBJECT_ID, .keep_all = TRUE) #first systolic blood pressure 
+```
+```{r}
+#whether the patient died within 30 days of hospitcal admission.
+live30 <- admissions %>%
+  mutate(livetime = as.numeric(as.duration(DEATHTIME - ADMITTIME)) / 86400,
+          live = ifelse((livetime>30) == FALSE, "less than 30", "more than 30"))
+```
+
+```{r}
+#demographic and wether live more than 30
+demo <- select(live30, HADM_ID, SUBJECT_ID, INSURANCE, LANGUAGE, RELIGION, MARITAL_STATUS, ETHNICITY, live)
+```
+
+combine the firsticu and demographic and 30:
+```{r}
+icudemo30 <- firsticu %>%
+  left_join(demo, by = "HADM_ID")
+```
+
+combine icudemo30 and firstchart:
+```{r}
+full <- icudemo30 %>%
+  left_join(firstchart, by = c("SUBJECT_ID.x" = "SUBJECT_ID")) %>%
+  arrange(SUBJECT_ID.x)
+```
+
+select the variable that I need:
+```{r}
+fintable <- full %>%
+  select (-c(ROW_ID.y, SUBJECT_ID.y, HADM_ID.y, ICUSTAY_ID.y)) %>%
+  rename(ROW_ID = ROW_ID.x, SUBJECT_ID = SUBJECT_ID.x, HADM_ID = HADM_ID.x, 
+         ICUSTAY_ID = ICUSTAY_ID.x)
+fintable
+```
 
