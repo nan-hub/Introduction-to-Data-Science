@@ -819,7 +819,8 @@ nVals &lt;- seq(100, 500, by=100)
 for (n in nVals){
   for (dist in distTypes){
     oFile &lt;- paste(&quot;n&quot;, n, dist, &quot;.txt&quot;, sep=&quot;&quot;)
-    arg &lt;- paste(&quot; n=&quot;, n, &quot; dist=&quot;, shQuote(shQuote(dist)), &quot; seed=&quot;, seed,&quot; rep=&quot;, rep, sep=&quot;&quot;)
+    arg &lt;- paste(&quot; n=&quot;, n, &quot; dist=&quot;, shQuote(shQuote(dist)), 
+                 &quot; seed=&quot;, seed,&quot; rep=&quot;, rep, sep=&quot;&quot;)
     sysCall &lt;- paste(&quot;nohup Rscript runSim.R&quot;, arg, &quot; &gt; &quot;, oFile, sep=&quot;&quot;)
     system(sysCall,wait = FALSE)
     print(paste(&quot;sysCall=&quot;, sysCall, sep=&quot;&quot;))
