@@ -9,7 +9,7 @@ source("helpers.R")
 ui <- fluidPage(
   titlePanel("spread of coronavirus"),
   
-  sidebarLayout(
+  sidebarLayout(position = "left",
     
     
  sidebarPanel(
@@ -23,7 +23,7 @@ ui <- fluidPage(
       
       dateRangeInput("dates", 
                      "Date range",
-                     start = min(ncov_tbl$Date), 
+                     start = "2020-01-22", 
                      end = as.character(Sys.Date())),
       
       helpText("Select a stock to examine. 
@@ -48,7 +48,16 @@ ui <- fluidPage(
     
     ),
     
-    mainPanel(plotOutput("map"))
+    #mainPanel(plotOutput("map","stock")),
+ mainPanel("spread of coronavirus on specific date and the stock information since that date",
+           fluidRow(
+             splitLayout(cellWidths = c("45%", "55%"), plotOutput("map"), plotOutput("stock"))
+           ))
+ 
+ 
+ 
+ 
+  
   )
 )
 # Server logic ----
@@ -81,10 +90,24 @@ output$map<-renderPlot({
 
 
 
+dataInput <- reactive({
+  getSymbols(input$symb, src = "yahoo", 
+             from = input$dates[1],
+             to = input$dates[2],
+             auto.assign = FALSE)
+})
+
+output$stock <- renderPlot({
+  chartSeries(dataInput(), theme = chartTheme("white"), 
+              type = "line", log.scale = input$log, TA = NULL)
+})
+
+
+
+
 
 
 }
-
 
 # Run app ----
 shinyApp(ui, server)
