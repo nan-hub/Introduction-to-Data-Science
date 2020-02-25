@@ -13,13 +13,11 @@ confirmed_long <- confirmed %>%
                values_to = "confirmed") %>%
   mutate(Date = (mdy(Date))) # convert string to date-time
 
-
 recovered_long <- recovered %>%
   pivot_longer(-(`Province/State`:Long), 
                names_to = "Date", 
                values_to = "recovered") %>%
   mutate(Date = mdy(Date))
-
 
 death_long <- death %>%
   pivot_longer(-(`Province/State`:Long), 
@@ -27,14 +25,12 @@ death_long <- death %>%
                values_to = "death") %>%
   mutate(Date = mdy(Date))
 
-
 ncov_tbl <- confirmed_long %>%
   left_join(recovered_long) %>%
   left_join(death_long) %>%
   pivot_longer(confirmed:death, 
                names_to = "Case", 
                values_to = "Count")
-
 library(sf)
 chn_map <- st_read("./bou2_4p.shp", as_tibble = TRUE) %>%
   mutate(NAME = iconv(NAME, from = "GBK"),
