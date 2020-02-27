@@ -36,7 +36,6 @@ ui <- fluidPage(
       
       checkboxInput("adjust", 
                     "Adjust prices for inflation", value = FALSE),
- 
 ),
      mainPanel("Spread of coronavirus on specific date and the stock 
                information since that date",
@@ -67,8 +66,6 @@ output$map <- renderPlot ( {
     theme_bw() +
     labs(title = str_c(case, " cases"), subtitle = plotdate)
 } )
-
-
 
 dataInput <- reactive ( {
   getSymbols(input$symb, src = "yahoo", 
