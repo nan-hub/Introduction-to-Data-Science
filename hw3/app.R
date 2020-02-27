@@ -1,6 +1,7 @@
 # Load packages ----
 library(shiny)
 library(wesanderson)
+library(quantmod)
 
 # Source helper functions -----
 source("helpers.R")
