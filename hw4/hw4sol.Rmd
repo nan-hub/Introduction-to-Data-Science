@@ -1,0 +1,253 @@
+---
+title: "30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU"
+author: Nan Liu
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+  # ioslides_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In this research, we use MIMIC-III data set. MIMIC-III (Medical Information Mart for Intensive Care III) is a database comprising deidentified health-related data associated with over forty thousand patients who stayed in critical care units of the Beth Israel Deaconess Medical Center between 2001 and 2012.The database provides information such as demographics, vital sign measurements made at the bedside, laboratory test results, procedures, medications, caregiver notes, imaging reports, and mortality (both in and out of hospital).
+
+This report focus on the analysis of mortality rate of cardiac arrest 30 days after discharge.
+
+#Data preparation
+## Connect to PostgresSQL database
+Load database libraries and the tidyverse frontend:
+```{r}
+library(DBI)
+library(RPostgreSQL)
+library(tidyverse)
+library(lubridate)
+```
+
+Credentials for using PostgreSQL database. We are going to use username `postgres` with password `postgres` to access the `mimic` database in the schemee `mimiciii`. 
+```{r}
+# Load configuration settings
+dbdriver <- 'PostgreSQL'
+#host  <- '127.0.0.1'
+#port  <- '5432'
+user  <- 'postgres'
+password <- 'postgres'
+dbname <- 'mimic'
+schema <- 'mimiciii'
+# Connect to the database using the configuration settings
+con <- dbConnect(RPostgreSQL::PostgreSQL(), 
+                 dbname = dbname, 
+                 #host = host, 
+                 #port = port, 
+                 user = user, 
+                 password = password)
+# Set the default schema
+dbExecute(con, paste("SET search_path TO ", schema, sep=" "))
+con
+```
+
+## Connect to a table in database
+To connect to the `patients` table in the database:
+```{r}
+patients <- tbl(con, "patients")
+```
+
+## Query and subsetting
+Create a cohort of patients who were directly admitted into CCU and were diagnosed with cardiac arrest.
+
+First we create a (query) table of patients who were directly admitted into CCU.
+```{r}
+tbl(con, "transfers") %>%
+  select(subject_id, hadm_id, prev_careunit, curr_careunit) %>%
+  filter(is.na(prev_careunit) & curr_careunit == "CCU") %>%
+  select(subject_id, hadm_id) %>%
+  distinct() %>%
+  print() -> ccu_admissions
+```
+
+Now we want to restrict to cardiac arrest patients. To find all possible ICD-9 codes related to cardiac arrest, we search for string `cardiac arrest` in the `long_title` of table `d_icd_diagnoses`:
+```{r}
+tbl(con, "d_icd_diagnoses") %>%
+  filter(str_detect(tolower(long_title), "cardiac arrest")) %>% #ignore upper lower letter
+  print() -> ca_codes
+```
+
+`diagnoses_icd` table stores the diagnosis of each admission. We use `semi_join()` to keep the rows in `diagnoses_icd` that match the ICD-9 codes related to cardiac arrest:
+```{r}
+tbl(con, "diagnoses_icd") %>%
+  semi_join(ca_codes, by = "icd9_code") %>%
+  print() -> ca_admissions
+```
+CA(Cardiac Arrest) may not be listed as the principal diagnosis; as explained in [the documentation for the `patients` table](https://mimic.physionet.org/mimictables/diagnoses_icd/), the `seq_num` field is a priority ranking for the diagnoses generated at the end of stay. In order to focus on patients for whom CA was central to their hospitalization, we will include records with CA in any of the first five diagnosis positions, according to the `seq_num` field. To avoid duplicate admissions, we use `group_by()` and `top_n()` to limit the query to the first CA diagnosis for each admission.
+```{r}
+ca_admissions %>%
+  filter(seq_num <= 5) %>%
+  group_by(subject_id, hadm_id) %>%
+  # top_n(1, wt = seq_num) %>% #  not working. bug? use following as workaround
+  filter(min_rank(seq_num) <= 1) %>%
+  ungroup() %>%
+  select(subject_id, hadm_id, icd9_code, seq_num) %>%
+  print() -> ca_admissions
+```
+
+
+Now we `inner_join` the table of admissions to CCU and the table of admissions that include CA diagnosis.
+```{r}
+ccu_admissions %>%
+  inner_join(ca_admissions, by = c("subject_id", "hadm_id")) %>%
+  print() -> study_admissions
+```
+
+## Transform and augment query tables
+
+Now we create a logical variable indicating the CA is the principal diagonosis or not (according to `seq_num`).
+```{r}
+study_admissions %>%
+  mutate(principal_dx = seq_num == 1) %>%
+  select(-seq_num) %>%
+  print() -> study_admissions
+```
+
+We want to add information about the severity of patients’ ailments. The `drgcodes` table contains, for `DRG` codes from the All Payers Registry (APR), severity and mortality indicators. We pull the drug severity information and right-join it to our query table.
+```{r}
+tbl(con, "drgcodes") %>%
+  filter(str_detect(drg_type, "APR")) %>%
+  select(subject_id, hadm_id, drg_severity) %>%
+  right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
+  mutate(drg_severity = ifelse(is.na(drg_severity), 1, drg_severity)) %>%
+  print() -> study_admissions
+```
+
+Pull the admission time `admittime`, discharge time `dischtime`, date of birth `dob`, and date of death `dod`. We are interested in the  mortaility rate 30 days after discharge. So we only keep patients who didn't die in hospital.
+```{r}
+study_admissions %>%
+  left_join(
+    select(tbl(con, "admissions"),
+           subject_id, hadm_id, admittime, dischtime, hospital_expire_flag
+    ), by = c("subject_id", "hadm_id")
+  ) %>%
+  filter(hospital_expire_flag == 0) %>% # patients who did not die in hospital
+  select(-hospital_expire_flag) %>%
+  left_join(
+    select(tbl(con, "patients"), subject_id, dob, dod),
+    by = "subject_id"
+  ) %>%
+  print(width = Inf) -> study_admissions
+```
+
+
+To add `age` (at admission) variable into the table. [The documentation for the patients table](https://mimic.physionet.org/mimictables/patients/) explains that patients of 90 years and older had their ages artificially inflated, so we remove these patients from the analysis.
+```{r}
+study_admissions %>%
+  mutate(tt_death = date_part("day", dod) - date_part("day", dischtime)) %>%
+  mutate(mortality = tt_death <= 30) %>%
+  mutate(age = date_part("year", admittime) - date_part("year", dob)) %>%
+  filter(age < 90) %>%
+  mutate(age = age - ifelse(
+    date_part("month", admittime) < date_part("month", dob) |
+      (
+        date_part("month", admittime) == date_part("month", dob) &
+          date_part("day", admittime) < date_part("day", dob)
+      ),
+    1,
+    0
+  )) %>%
+  select(-admittime, -dischtime, -dob, -dod, -tt_death) %>%
+  select(subject_id, hadm_id, age, mortality, everything()) %>%
+  print() -> study_admissions
+```
+
+
+Many mortality indicators are missing, due to neither the hospital database nor the social security database having a record of these patients’ deaths. We could convert these to `FALSE` values, but it may be helpful to retain in the analytic table this information on whether deaths were recorded at all, e.g. for validation or sensitivity testing.
+
+Finally, let's merge some demographic information (ethnicity, gender) into our study `study_admissions`.
+```{r}
+tbl(con, "admissions") %>%
+  select(subject_id, ethnicity) %>%
+  distinct() %>%
+  print() -> study_subjects
+```
+
+```{r}
+tbl(con, "patients") %>%
+  select(subject_id, gender) %>%
+  distinct() %>%
+  full_join(study_subjects, by = "subject_id") %>%
+  print() -> study_subjects
+```
+
+```{r}
+study_subjects %>%
+  semi_join(study_admissions, by = "subject_id") %>%
+  print() -> study_subjects
+```
+
+Let's resolves ome diversity and inconsistency in the `ethnicity` field:
+```{r}
+unknown_ethnicity <- c(
+  "OTHER",
+  "UNABLE TO OBTAIN",
+  "UNKNOWN/NOT SPECIFIED",
+  "MULTI RACE ETHNICITY",
+  "PATIENT DECLINED TO ANSWER",
+  "UNKNOWN"
+)
+
+study_subjects %>%
+  collect() %>%
+  mutate(ethnic_group = case_when(
+    str_detect(ethnicity, "^ASIAN") ~ "ASIAN",
+    str_detect(ethnicity, "^BLACK") ~ "BLACK",
+    str_detect(ethnicity, "^HISPANIC") ~ "HISPANIC",
+    str_detect(ethnicity, "^WHITE") ~ "WHITE",
+    ethnicity %in% unknown_ethnicity ~ NA_character_,
+    TRUE ~ NA_character_
+  )) %>%
+  select(subject_id, gender, ethnic_group) %>%
+  print() -> study_subjects
+```
+
+Some patients are coded as belonging to more than one ethnic group. To resolve these inconsistencies, we define a helper function to pick the modal value from a vector of values in R, which can be used by the `summarize()` function to choose one ethnic group for each patient.
+```{r}
+most <- function(x) {
+  if (all(is.na(x))) return(NA_character_)
+  y <- table(x, useNA = "no")
+  if (length(which(y == max(y))) > 1) return(NA_character_)
+  return(names(y)[which.max(y)])
+}
+
+study_subjects %>%
+  group_by(subject_id) %>%
+  summarize(ethnic_group = most(ethnic_group)) %>%
+  ungroup() %>%
+  mutate(ethnic_group = ifelse(is.na(ethnic_group), "UNKNOWN", ethnic_group)) %>%
+  print() -> subject_ethnic_groups
+```
+
+Now we add the demographic information `gender` and `ethnicity` into our `study_admissions` table:
+```{r}
+study_admissions %>%
+  left_join(study_subjects, by = "subject_id", copy = TRUE) %>%
+  print() -> study_admissions
+```
+
+## Close the connection to a database
+
+Close the connection:
+```{r}
+dbDisconnect(con)
+```
+
+## CONSORT Flow Diagrams
+
+CONSORT Flow Diagrams can be used to plot the flow of data selection of a patient cohort. 
+
+
+
+
+
+
