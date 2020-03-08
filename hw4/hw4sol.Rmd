@@ -240,7 +240,7 @@ study_admissions %>%
 
 Close the connection:
 ```{r}
-dbDisconnect(con)
+#dbDisconnect(con)
 ```
 
 ## CONSORT Flow Diagrams
@@ -298,7 +298,60 @@ for (i in 1:num_of_boxes) {
   }
 ```
 
+#Data Visualization
+```{r}
+head(study_admissions)
+```
+
+-mortality
+
+```{r}
+#distinct?
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = mortality)) + 
+  labs(x = "mortality")
+```
+
+-age
+
+```{r}
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = age)) + 
+  labs(x = "Age")
+```
+
+
+-gender
+
+```{r}
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = gender)) + 
+  labs(x = "Gender")
+```
+
+
+-ethnic_group
+
+```{r}
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = ethnic_group)) + 
+  labs(x = "Ethnic")
+```
+
+
+#Analytics
 
 
 
 
+
+## Close the connection to a database
+
+Close the connection:
+```{r}
+dbDisconnect(con)
+```
