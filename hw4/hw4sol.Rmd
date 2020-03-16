@@ -18,7 +18,7 @@ In this research, we use MIMIC-III data set. MIMIC-III (Medical Information Mart
 
 This report focus on the analysis of mortality rate of cardiac arrest 30 days after discharge.
 
-#Data preparation
+# Data preparation
 ## Connect to PostgresSQL database
 Load database libraries and the tidyverse frontend:
 ```{r}
@@ -32,8 +32,6 @@ Credentials for using PostgreSQL database. We are going to use username `postgre
 ```{r}
 # Load configuration settings
 dbdriver <- 'PostgreSQL'
-#host  <- '127.0.0.1'
-#port  <- '5432'
 user  <- 'postgres'
 password <- 'postgres'
 dbname <- 'mimic'
@@ -41,21 +39,15 @@ schema <- 'mimiciii'
 # Connect to the database using the configuration settings
 con <- dbConnect(RPostgreSQL::PostgreSQL(), 
                  dbname = dbname, 
-                 #host = host, 
-                 #port = port, 
                  user = user, 
                  password = password)
 # Set the default schema
 dbExecute(con, paste("SET search_path TO ", schema, sep=" "))
 con
+
+#lapply(dbListConnections(PostgreSQL()), dbDisconnect)
 ```
 
-## Connect to a table in database
-To connect to the `patients` table in the database:
-```{r}
-patients <- tbl(con, "patients")
-
-```
 
 ## Query and subsetting
 Create a cohort of patients who were directly admitted into CCU and were diagnosed with cardiac arrest.
@@ -83,12 +75,12 @@ tbl(con, "diagnoses_icd") %>%
   semi_join(ca_codes, by = "icd9_code") %>%
   print() -> ca_admissions
 ```
+
 CA(Cardiac Arrest) may not be listed as the principal diagnosis; as explained in [the documentation for the `patients` table](https://mimic.physionet.org/mimictables/diagnoses_icd/), the `seq_num` field is a priority ranking for the diagnoses generated at the end of stay. In order to focus on patients for whom CA was central to their hospitalization, we will include records with CA in any of the first five diagnosis positions, according to the `seq_num` field. To avoid duplicate admissions, we use `group_by()` and `top_n()` to limit the query to the first CA diagnosis for each admission.
 ```{r}
 ca_admissions %>%
   filter(seq_num <= 5) %>%
   group_by(subject_id, hadm_id) %>%
-  # top_n(1, wt = seq_num) %>% #  not working. bug? use following as workaround
   filter(min_rank(seq_num) <= 1) %>%
   ungroup() %>%
   select(subject_id, hadm_id, icd9_code, seq_num) %>%
@@ -120,8 +112,11 @@ tbl(con, "drgcodes") %>%
   select(subject_id, hadm_id, drg_severity) %>%
   right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
   mutate(drg_severity = ifelse(is.na(drg_severity), 1, drg_severity)) %>%
+  group_by(subject_id, hadm_id) %>%
+   summarise (drg_severity = mean(drg_severity, na.rm = TRUE)) %>%
   print() -> study_admissions
 ```
+
 
 Pull the admission time `admittime`, discharge time `dischtime`, date of birth `dob`, and date of death `dod`. We are interested in the  mortaility rate 30 days after discharge. So we only keep patients who didn't die in hospital.
 ```{r}
@@ -129,7 +124,7 @@ study_admissions %>%
   left_join(
     select(tbl(con, "admissions"),
            subject_id, hadm_id, admittime, dischtime, hospital_expire_flag
-    ), by = c("subject_id", "hadm_id")
+    ), by = c("subject_id","hadm_id")
   ) %>%
   filter(hospital_expire_flag == 0) %>% # patients who did not die in hospital
   select(-hospital_expire_flag) %>%
@@ -140,12 +135,23 @@ study_admissions %>%
   print(width = Inf) -> study_admissions
 ```
 
-
 To add `age` (at admission) variable into the table. [The documentation for the patients table](https://mimic.physionet.org/mimictables/patients/) explains that patients of 90 years and older had their ages artificially inflated, so we remove these patients from the analysis.
 ```{r}
 study_admissions %>%
-  mutate(tt_death = date_part("day", dod) - date_part("day", dischtime)) %>%
-  mutate(mortality = tt_death <= 30) %>%
+  mutate(dyear = date_part("year", dod) - date_part("year", dischtime)) %>%
+  mutate(dmonth = date_part("month", dod) - date_part("month", dischtime)) %>%
+  mutate(dday = date_part("day", dod) - date_part("day", dischtime)) %>%
+  mutate(death = ifelse(
+  (dyear == 0) & (dmonth <= 1) & (dday <= 0) |
+    (
+     (dyear == 0) & (dmonth == 0) & (dday >= 0) 
+    ),
+  1,
+  NA
+)) %>%
+  #mutate(tt_death = date_part("day", dod) - date_part("day", dischtime)) %>%
+  #mutate(mortality = ttdeath <= 30) %>%
+
   mutate(age = date_part("year", admittime) - date_part("year", dob)) %>%
   filter(age < 90) %>%
   mutate(age = age - ifelse(
@@ -157,10 +163,34 @@ study_admissions %>%
     1,
     0
   )) %>%
-  select(-admittime, -dischtime, -dob, -dod, -tt_death) %>%
-  select(subject_id, hadm_id, age, mortality, everything()) %>%
+  select(-admittime, -dischtime, -dob, -dod, -dyear, -dmonth, -dday) %>%
+  select(subject_id, hadm_id, age, death, everything()) %>%
   print() -> study_admissions
 ```
+
+
+add new predictors
+```{r}
+tbl(con, "admissions") %>%
+  select(subject_id, hadm_id, admission_location) %>%
+  right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
+  print() -> study_admissions
+```
+
+```{r}
+#charts <-tbl(con, "chartevents")
+#collect(charts)
+```
+
+
+```{r}
+#charts %>%
+#  filter(itemid == 212) %>%
+#  select(subject_id, hadm_id, value) %>%
+#  right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
+#  print() -> study_admissions
+```
+
 
 
 Many mortality indicators are missing, due to neither the hospital database nor the social security database having a record of these patients’ deaths. We could convert these to `FALSE` values, but it may be helpful to retain in the analytic table this information on whether deaths were recorded at all, e.g. for validation or sensitivity testing.
@@ -229,21 +259,24 @@ study_subjects %>%
   print() -> subject_ethnic_groups
 ```
 
+```{r}
+study_subjects %>%
+  select(subject_id, gender) %>%
+  left_join(subject_ethnic_groups, by = "subject_id") %>%
+  distinct() %>%
+  print() -> study_subjects
+```
+
+
 Now we add the demographic information `gender` and `ethnicity` into our `study_admissions` table:
 ```{r}
 study_admissions %>%
-  left_join(study_subjects, by = "subject_id", copy = TRUE) %>%
-  print() -> study_admissions
+  left_join(study_subjects,  by = "subject_id", copy=TRUE) %>%
+  print -> study_admissions
 ```
 
-## Close the connection to a database
 
-Close the connection:
-```{r}
-#dbDisconnect(con)
-```
-
-## CONSORT Flow Diagrams
+## Study cohort
 
 CONSORT Flow Diagrams can be used to plot the flow of data selection of a patient cohort. 
 
@@ -276,9 +309,9 @@ box_pos[5,] = c(0.20, vert_pos[5])
 box_content <- matrix(nrow = num_of_boxes, ncol = 1, data = 0)
 box_content[1] = "All patients in CCU \n n = 1000" # 1st box
 box_content[2] = "Exclude patients whose first 5 diagnosis \n does not include Cardiac Arrest \n n = 697" # 2nd box
-box_content[3] = "Exclude patients who dies in hospital \n n = 23" # 3rd box
-box_content[4] = "Exclude patients whose age>90 \n n = 15" # etc...
-box_content[5] = "Study cohort \n n = 265"
+box_content[3] = "Exclude patients who dies in hospital \n n = 110" # 3rd box
+box_content[4] = "Exclude patients whose age>90 \n n = 8" # etc...
+box_content[5] = "Study cohort \n n = 185"
 
 # adjust the size of boxes to fit content
 box_x <- c(0.20, 0.25, 0.25, 0.25, 0.20)
@@ -298,7 +331,7 @@ for (i in 1:num_of_boxes) {
   }
 ```
 
-#Data Visualization
+# Data Visualization
 ```{r}
 head(study_admissions)
 ```
@@ -306,11 +339,11 @@ head(study_admissions)
 -mortality
 
 ```{r}
-#distinct?
 study_admissions %>%
-  ggplot() + 
-  geom_bar(mapping = aes(x = mortality)) + 
-  labs(x = "mortality")
+   mutate(livedeath =ifelse(is.na(death) == FALSE, 1, 0)) %>%
+   ggplot() + 
+   geom_bar(mapping = aes(x = livedeath)) + 
+   labs(x = "mortality")
 ```
 
 -age
@@ -343,15 +376,112 @@ study_admissions %>%
 ```
 
 
-#Analytics
+# Analytics
+## Logistic regression
+```{r}
+studyad<- study_admissions %>%
+   mutate(livedeath =ifelse(is.na(death) == FALSE, 1, 0))
+model_df<-as.data.frame(studyad)
+set.seed(123)
+#split data in to 70% traing set and 30% test set
+s <- sample(nrow(model_df),floor(nrow(model_df)*0.7),replace = F)
+train <- model_df[s,]
+test <- model_df[-s,]
+mylogit <- glm(livedeath ~ age + gender + ethnic_group + admission_location  + drg_severity, 
+               data = train, maxit = 10000)
+#use logistic method to find minist AIC
+step <- step(mylogit, direction='both')
+summary(step)
+```
+
+
+```{r}
+#install.packages("pROC")
+library(pROC)
+#install.packages("plotROC")
+library(plotROC)
+#install.packages("DMwR")
+library(DMwR)
+```
+
+```{r}
+pred <- predict(step, test, type = 'response')
+fitted.r <- ifelse(pred >= 0.5,1,0)
+accuracy <- table(fitted.r, test$livedeath)
+roc <- roc(test$livedeath, pred)
+plot(roc)
+roc
+```
+
+
+## Neural network
+
+
+```{r}
+install.packages("DMwR")
+```
+
+```{r}
+library(lattice)
+library(grid)
+library(DMwR)
+library(nnet)
+```
+
+build the model:
+multiple try: 270 best
+```{r}
+live.nn<-nnet(livedeath ~ age + gender + ethnic_group + admission_location + 
+                drg_severity, data = train, size = 5, decay = 5e-4, maxit = 270)
+summary(live.nn)
+```
+
+
+predict new variable:
+
+```{r}
+#install.packages("pROC")
+library(pROC)
+#install.packages("plotROC")
+library(plotROC)
+#install.packages("DMwR")
+library(DMwR)
+pred2 <- predict(live.nn, test)
+fitted.r2 <- ifelse(pred2 >=0.5,1,0)
+accuracy2 <- table(fitted.r2, test$livedeath)
+roc2 <- roc(test$livedeath, pred2)
+plot(roc2)
+roc2
+```
+
+plot neural:
+```{r}
+install.packages("reshape")
+```
+
+```{r}
+library(reshape)
+library(nnet)
+library(devtools)
+library(reshape2)
+source_url('https://gist.githubusercontent.com/Peque/41a9e20d6687f2f3108d/raw/85e14f3a292e126f1454864427e3a189c2fe33f3/nnet_plot_update.r')
+plot.nnet(live.nn, alpha.val = 0.5, circle.col = list('lightgray', 'white'), bord.col = 'black')
+```
 
 
 
-
-
-## Close the connection to a database
+# Close the connection to a database
 
 Close the connection:
 ```{r}
 dbDisconnect(con)
 ```
+
+# Conclusions
+
+
+
+
+
+
+
