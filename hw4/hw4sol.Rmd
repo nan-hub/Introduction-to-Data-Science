@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 In this research, we use MIMIC-III data set. MIMIC-III (Medical Information Mart for Intensive Care III) is a database comprising deidentified health-related data associated with over forty thousand patients who stayed in critical care units of the Beth Israel Deaconess Medical Center between 2001 and 2012.The database provides information such as demographics, vital sign measurements made at the bedside, laboratory test results, procedures, medications, caregiver notes, imaging reports, and mortality (both in and out of hospital).
 
-This report focus on the analysis of mortality rate of cardiac arrest 30 days after discharge.
+This report focus on the analysis of mortality rate of cardiac arrest 30 days after discharge from hospital.
 
 # Data preparation
 ## Connect to PostgresSQL database
@@ -168,30 +168,14 @@ study_admissions %>%
   print() -> study_admissions
 ```
 
+To add `admission_location` variable into the table:
 
-add new predictors
 ```{r}
 tbl(con, "admissions") %>%
   select(subject_id, hadm_id, admission_location) %>%
   right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
   print() -> study_admissions
 ```
-
-```{r}
-#charts <-tbl(con, "chartevents")
-#collect(charts)
-```
-
-
-```{r}
-#charts %>%
-#  filter(itemid == 212) %>%
-#  select(subject_id, hadm_id, value) %>%
-#  right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
-#  print() -> study_admissions
-```
-
-
 
 Many mortality indicators are missing, due to neither the hospital database nor the social security database having a record of these patients’ deaths. We could convert these to `FALSE` values, but it may be helpful to retain in the analytic table this information on whether deaths were recorded at all, e.g. for validation or sensitivity testing.
 
@@ -272,6 +256,7 @@ Now we add the demographic information `gender` and `ethnicity` into our `study_
 ```{r}
 study_admissions %>%
   left_join(study_subjects,  by = "subject_id", copy=TRUE) %>%
+  distinct() %>%
   print -> study_admissions
 ```
 
@@ -302,8 +287,8 @@ box_pos <- matrix(nrow = num_of_boxes, ncol = 2, data = 0)
 box_pos[1,] = c(0.20, vert_pos[1]) # 1st box
 box_pos[2,] = c(0.70, vert_pos[2]) # 2nd box
 box_pos[3,] = c(0.70, vert_pos[3]) # 3rd box
-box_pos[4,] = c(0.70, vert_pos[4]) # etc...
-box_pos[5,] = c(0.20, vert_pos[5])
+box_pos[4,] = c(0.70, vert_pos[4]) # 4th box
+box_pos[5,] = c(0.20, vert_pos[5]) # 5th box
 
 # content of boxes
 box_content <- matrix(nrow = num_of_boxes, ncol = 1, data = 0)
@@ -332,12 +317,12 @@ for (i in 1:num_of_boxes) {
 ```
 
 # Data Visualization
+First, let's display the first 10 lines of `study_admissions`:
 ```{r}
 head(study_admissions)
 ```
 
--mortality
-
+##Bar plot of mortality
 ```{r}
 study_admissions %>%
    mutate(livedeath =ifelse(is.na(death) == FALSE, 1, 0)) %>%
@@ -346,7 +331,7 @@ study_admissions %>%
    labs(x = "mortality")
 ```
 
--age
+##Bar plot of age
 
 ```{r}
 study_admissions %>%
@@ -356,7 +341,7 @@ study_admissions %>%
 ```
 
 
--gender
+##Bar plot of gender
 
 ```{r}
 study_admissions %>%
@@ -366,13 +351,35 @@ study_admissions %>%
 ```
 
 
--ethnic_group
+##Bar plot of ethnic_group
 
 ```{r}
 study_admissions %>%
   ggplot() + 
   geom_bar(mapping = aes(x = ethnic_group)) + 
   labs(x = "Ethnic")
+```
+
+##Bar plot of admission location
+
+```{r}
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = admission_location)) + 
+  labs(x = "Admission location") +
+  theme(axis.text.x = element_text(size  = 8,
+                                   angle = 45,
+                                   hjust = 1,
+                                   vjust = 1))
+```
+
+##Bar plot of drug severity
+
+```{r}
+study_admissions %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = drg_severity)) + 
+  labs(x = "Drug severity")
 ```
 
 
@@ -388,7 +395,7 @@ s <- sample(nrow(model_df),floor(nrow(model_df)*0.7),replace = F)
 train <- model_df[s,]
 test <- model_df[-s,]
 mylogit <- glm(livedeath ~ age + gender + ethnic_group + admission_location  + drg_severity, 
-               data = train, maxit = 10000)
+               data = train, family = binomial, maxit = 10000)
 #use logistic method to find minist AIC
 step <- step(mylogit, direction='both')
 summary(step)
@@ -569,8 +576,6 @@ library(reshape2)
 source_url('https://gist.githubusercontent.com/Peque/41a9e20d6687f2f3108d/raw/85e14f3a292e126f1454864427e3a189c2fe33f3/nnet_plot_update.r')
 plot.nnet(live.nn, alpha.val = 0.5, circle.col = list('lightgray', 'white'), bord.col = 'black')
 ```
-
-
 
 # Close the connection to a database
 
