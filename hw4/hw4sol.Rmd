@@ -416,6 +416,108 @@ roc
 
 ## Neural network
 
+###Keras
+```{r}
+library(keras)
+train_x <-train[,-9]
+train_y<- train[ ,9]
+test_x <- test[,-9]
+test_y<- test[ ,9]
+
+```
+
+
+```{r}
+trainx<-train_x %>%
+  mutate( age = age / max(age),
+          gender = ifelse (gender == "F", 1, 0),
+          drg_severity = drg_severity / max(drg_severity),
+          ethnic_group = ifelse(ethnic_group == "WHITE",1,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "BLACK",2,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "UNKNOWN",3,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "ASIAN",4,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "HISPANIC",5,ethnic_group),
+          ethnic_group = as.numeric(ethnic_group) / 5,
+          admission_location = ifelse(admission_location == "TRANSFER FROM HOSP/EXTRAM",1,admission_location),
+          admission_location = ifelse(admission_location == "CLINIC REFERRAL/PREMATURE",2,admission_location),
+          admission_location = ifelse(admission_location == "EMERGENCY ROOM ADMIT",3,admission_location),
+          admission_location = ifelse(admission_location == "PHYS REFERRAL/NORMAL DELI",4,admission_location),
+          admission_location = as.numeric(admission_location) / 4
+         ) %>%
+  select(-c(subject_id, hadm_id, death))
+trainx <- as.matrix(trainx)
+train_y <- to_categorical(train_y,2)
+
+
+testx<-test_x %>%
+  mutate( age = age / max(age),
+          gender = ifelse (gender == "F", 1, 0),
+          drg_severity = drg_severity / max(drg_severity),
+          ethnic_group = ifelse(ethnic_group == "WHITE",1,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "BLACK",2,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "UNKNOWN",3,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "ASIAN",4,ethnic_group),
+          ethnic_group = ifelse(ethnic_group == "HISPANIC",5,ethnic_group),
+          ethnic_group = as.numeric(ethnic_group) / 5,
+          admission_location = ifelse(admission_location == "TRANSFER FROM HOSP/EXTRAM",1,admission_location),
+          admission_location = ifelse(admission_location == "CLINIC REFERRAL/PREMATURE",2,admission_location),
+          admission_location = ifelse(admission_location == "EMERGENCY ROOM ADMIT",3,admission_location),
+          admission_location = ifelse(admission_location == "PHYS REFERRAL/NORMAL DELI",4,admission_location),
+          admission_location = as.numeric(admission_location) / 4
+         ) %>%
+  select(-c(subject_id, hadm_id, death))
+testx <- as.matrix(testx)
+test_y <- to_categorical(test_y,2)
+```
+
+Define the model:
+```{r}
+model <- keras_model_sequential() 
+model %>% 
+  layer_dense(units = 129, activation = 'relu', input_shape = c(5)) %>% 
+  layer_dropout(rate = 0.4) %>% 
+  layer_dense(units = 50, activation = 'relu') %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 2, activation = 'softmax')
+summary(model)
+```
+
+Compile the model with appropriate loss function, optimizer, and metrics:
+```{r}
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics = c('accuracy')
+)
+```
+
+Training and validation
+```{r}
+system.time({
+history <- model %>% fit(
+  trainx, train_y, 
+  epochs = 30, batch_size = 10, 
+  validation_split = 0.2
+)
+})
+
+plot(history)
+```
+
+Testing:
+Evaluate model performance on the test data:
+```{r}
+model %>% evaluate(testx, test_y)
+```
+
+Generate predictions on new data:
+```{r}
+model %>% predict_classes(testx) %>% head()
+```
+
+
+
+###DMwR package
 
 ```{r}
 install.packages("DMwR")
@@ -478,6 +580,7 @@ dbDisconnect(con)
 ```
 
 # Conclusions
+
 
 
 
