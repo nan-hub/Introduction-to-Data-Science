@@ -113,7 +113,7 @@ tbl(con, "drgcodes") %>%
   right_join(study_admissions, by = c("subject_id", "hadm_id")) %>%
   mutate(drg_severity = ifelse(is.na(drg_severity), 1, drg_severity)) %>%
   group_by(subject_id, hadm_id) %>%
-   summarise (drg_severity = mean(drg_severity, na.rm = TRUE)) %>%
+  summarise (drg_severity = mean(drg_severity, na.rm = TRUE)) %>%
   print() -> study_admissions
 ```
 
@@ -135,7 +135,7 @@ study_admissions %>%
   print(width = Inf) -> study_admissions
 ```
 
-To add `age` (at admission) variable into the table. [The documentation for the patients table](https://mimic.physionet.org/mimictables/patients/) explains that patients of 90 years and older had their ages artificially inflated, so we remove these patients from the analysis.
+To add `age` (at admission) variable into the table. [The documentation for the patients table](https://mimic.physionet.org/mimictables/patients/) explains that patients of 90 years and older had their ages artificially inflated, so we remove these patients from the analysis. Also create new variable `death` to indicate whether the patient dies or not in 30 days.
 ```{r}
 study_admissions %>%
   mutate(dyear = date_part("year", dod) - date_part("year", dischtime)) %>%
@@ -424,13 +424,13 @@ plot(roc)
 roc
 ```
 
-The area under the curve is 0.5063. So the model built from this data set is not very accurate. 3 in 56 people will die for Cardiac Arrest in 30 days after being admitted to CCU. The 30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU is about 5%.
+The area under the curve is 0.5063. So the model built from this data set is not very accurate. 3 in 56 people will die for Cardiac Arrest in 30 days after being admitted to CCU. The 30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU is about 5.4%.
 
 ## Neural network
 
-We try 2 different methods of neural netwok. 
+I try 2 different methods of neural netwok. 
 
-First we use Keras package to specify and train models.
+First I use Keras package to specify and train models.
 
 Aquire data:
 ```{r}
@@ -439,7 +439,6 @@ train_x <-train[,-9]
 train_y<- train[ ,9]
 test_x <- test[,-9]
 test_y<- test[ ,9]
-
 ```
 
 Prepare data:
@@ -481,13 +480,13 @@ testx<-test_x %>%
           ethnic_group = ifelse(ethnic_group == "HISPANIC", 5, ethnic_group),
           ethnic_group = as.numeric(ethnic_group) / 5,
           admission_location = ifelse(admission_location == 
-                             "TRANSFER FROM HOSP/EXTRAM",1,admission_location),
+                             "TRANSFER FROM HOSP/EXTRAM",1, admission_location),
           admission_location = ifelse(admission_location == 
-                            "CLINIC REFERRAL/PREMATURE",2,admission_location),
+                             "CLINIC REFERRAL/PREMATURE",2, admission_location),
           admission_location = ifelse(admission_location == 
-                                "EMERGENCY ROOM ADMIT",3,admission_location),
+                             "EMERGENCY ROOM ADMIT",3, admission_location),
           admission_location = ifelse(admission_location == 
-                            "PHYS REFERRAL/NORMAL DELI",4,admission_location),
+                             "PHYS REFERRAL/NORMAL DELI",4, admission_location),
           admission_location = as.numeric(admission_location) / 4
          ) %>%
   select(-c(subject_id, hadm_id, death))
@@ -498,19 +497,17 @@ Encode $y$ as binary class matrix:
 
 ```{r}
 train_y <- to_categorical(train_y, 2)
-train_y
 test_y <- to_categorical(test_y, 2)
-test_y
 ```
 
-Define a **sequential model** (a linear stack of layers) with 2 fully-connected hidden layers (129 and 50 neurons):
+Define a **sequential model** (a linear stack of layers) with 2 fully-connected hidden layers (256 and 128 neurons):
 
 ```{r}
 model <- keras_model_sequential() 
 model %>% 
-  layer_dense(units = 129, activation = 'relu', input_shape = c(5)) %>% 
+  layer_dense(units = 256, activation = 'relu', input_shape = c(5)) %>% 
   layer_dropout(rate = 0.4) %>% 
-  layer_dense(units = 50, activation = 'relu') %>%
+  layer_dense(units = 128, activation = 'relu') %>%
   layer_dropout(rate = 0.3) %>%
   layer_dense(units = 2, activation = 'softmax')
 summary(model)
@@ -530,7 +527,7 @@ Training and validation:
 system.time({
 history <- model %>% fit(
   trainx, train_y, 
-  epochs = 30, batch_size = 10, 
+  epochs = 30, batch_size = 128, 
   validation_split = 0.2
 )
 })
@@ -552,7 +549,8 @@ mean(predict)
 The accuracy is about 94.6%.
 The 30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU is about 5.4%.
 
-Then we try another method with `DMwR` package and nnet function:
+
+Then I try another method with `DMwR` package and nnet function:
 
 ```{r}
 install.packages("DMwR")
@@ -566,7 +564,7 @@ library(nnet)
 ```
 
 Define the model:
-After multiple try, we found maxit = 270 can achieve high accuracy around 72.33%
+After multiple try, I found maxit = 270 can achieve high accuracy around 72.33%
 ```{r}
 live.nn<-nnet(livedeath ~ age + gender + ethnic_group + admission_location + 
                 drg_severity, data = train, size = 5, decay = 5e-4, maxit = 270)
@@ -617,7 +615,7 @@ dbDisconnect(con)
 ```
 
 # Conclusions
-The results from logistic regression method and neural network method are similiar. The 30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU is about 5.4%. However, the model built from neural network has higher accuracy.The model from keras package has accuacy around 94.6% and the model from nnet function is about 72.33%.
+The results from logistic regression method and neural network method are similiar. The 30-Day Mortality Rate of Cardiac Arrest Patients Admitted to CCU is about 5.4%. However, the model built from neural network has higher accuracy. The model from keras package has accuacy around 94.6% and the model from nnet function is about 72.33%.
 
 
 
